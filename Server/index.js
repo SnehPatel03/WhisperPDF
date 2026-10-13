@@ -15,9 +15,6 @@ app.use(express.json());
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ----------------------
-// BullMQ Queue
-// ----------------------
 const queue = new Queue("file-upload-queue", {
   connection: {
     host: "localhost",
@@ -25,9 +22,6 @@ const queue = new Queue("file-upload-queue", {
   },
 });
 
-// ----------------------
-// Multer Storage Config
-// ----------------------
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "upload/");
@@ -41,9 +35,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ----------------------
-// Upload PDF Route
-// ----------------------
 app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
   try {
     await queue.add(
@@ -65,9 +56,6 @@ app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
   }
 });
 
-// ----------------------
-// Chat Route
-// ----------------------
 app.get("/chat", async (req, res) => {
   try {
     const userQuery = req.query.message;
@@ -78,13 +66,11 @@ app.get("/chat", async (req, res) => {
       });
     }
 
-    // Gemini Embeddings
     const embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: process.env.GEMINI_API_KEY,
       model: "models/gemini-embedding-001",
     });
 
-    // Connect to Qdrant
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {
@@ -109,7 +95,7 @@ ${docs.map((d) => d.pageContent).join("\n")}
 `;
 
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
     });
 
     const result = await model.generateContent([
@@ -129,9 +115,7 @@ ${docs.map((d) => d.pageContent).join("\n")}
   }
 });
 
-// ----------------------
-// Start Server
-// ----------------------
+
 app.listen(3000, () => {
   console.log("Server is Listening on PORT : 3000");
 });

@@ -1,140 +1,124 @@
-import { Upload } from "lucide-react";
+import { FileText, FileUp, LoaderCircle, X } from "lucide-react";
 import * as React from "react";
-import { SignOutButton} from '@clerk/clerk-react'
+import { SignOutButton } from "@clerk/clerk-react";
 
+interface FileUploadProps {
+  onFileChange: (fileName: string | null) => void;
+}
 
-const FileUpload: React.FC = () => {
+const FileUpload: React.FC<FileUploadProps> = ({ onFileChange }) => {
+  const [file, setFile] = React.useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileUploadBtnClick = () => {
-    const el = document.createElement("input");
-    el.setAttribute("type", "file");
-    el.setAttribute("accept", "application/pdf");
+  React.useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
-    /* Listener */
-    el.addEventListener("change", async () => {
-      if (el.files && el.files.length > 0) {
-        const file = el.files.item(0);
-        if (file) {
-          setIsUploading(true);
-          const formData = new FormData();
-          formData.append("pdf", file);
+  const selectFile = async (nextFile: File) => {
+    if (nextFile.type !== "application/pdf") {
+      setError("Please choose a PDF file.");
+      return;
+    }
 
-          try {
-            await fetch("http://localhost:3000/upload/pdf", {
-              method: 'POST',
-              body: formData
-            });
-            console.log("File Uploaded Successfully!!");
-          } catch (error) {
-            console.error("Upload failed:", error);
-          } finally {
-            setIsUploading(false);
-          }
-        }
-      }
-    });
-    el.click();
-  };
+    setError("");
+    setFile(nextFile);
+    setPreviewUrl(URL.createObjectURL(nextFile));
+    onFileChange(nextFile.name);
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("pdf", nextFile);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      if (file.type === "application/pdf") {
-        setIsUploading(true);
-        const formData = new FormData();
-        formData.append("pdf", file);
-
-        try {
-          await fetch("http://localhost:3000/upload/pdf", {
-            method: 'POST',
-            body: formData
-          });
-          console.log("File Uploaded Successfully!!");
-        } catch (error) {
-          console.error("Upload failed:", error);
-        } finally {
-          setIsUploading(false);
-        }
-      }
+    try {
+      const response = await fetch("http://localhost:3000/upload/pdf", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Upload failed. Please try again.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
+      onFileChange(null);
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-800 fixed">
-      <div className='fixed top-5 left-5' >
-           <button className="border-1 border-slate-400 text-slate-400 px-3 py-1 rounded-md hover:bg-red-700 hover:border-slate-800 scale-105 hover:text-slate-200 font-bold duration-500 text-sm">
-              <SignOutButton />
-           </button>
-      </div>
-      <div
-        className={`
-          relative cursor-pointer select-none
-          bg-slate-800 border-2 border-dashed
-          rounded-2xl p-12
-          transition-all duration-500 ease-in-out
-          hover:shadow-2xl hover:border-slate-600 hover:bg-slate-700
-          active:scale-95
-          ${isDragOver ? 'border-slate-500 bg-slate-700 shadow-2xl' : 'border-slate-600'}
-          ${isUploading ? 'pointer-events-none opacity-75' : ''}
-        `}
-        onClick={handleFileUploadBtnClick}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-             
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className={`
-            p-4 rounded-full bg-slate-700 
-            transition-colors duration-500
-            ${isDragOver || isUploading ? 'bg-slate-600' : ''}
-          `}>
-            <Upload 
-              size={32} 
-              className={`
-                text-slate-300 transition-all duration-500
-                ${isDragOver ? 'text-white scale-110' : ''}
-                ${isUploading ? 'text-white animate-pulse' : ''}
-              `}
-            />
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-1">
-              {isUploading ? 'Uploading...' : 'Upload PDF'}
-            </h3>
-            <p className="text-sm text-slate-400">
-              Click to browse or drag and drop
-            </p>
-          </div>
-        </div>
+  const clearFile = () => {
+    setFile(null);
+    setPreviewUrl(null);
+    setError("");
+    onFileChange(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
 
-        {isUploading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-800 bg-opacity-95 rounded-2xl">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm text-white font-medium">Uploading...</span>
-            </div>
-          </div>
-        )}
+  const onDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) void selectFile(droppedFile);
+  };
+
+  return (
+    <aside className="document-panel">
+      <div className="workspace-brand">
+        <a className="brand-mark" href="#top"><img className="workspace-brand-logo" src="/logo.png" alt="" />WhisperPDF</a>
+        <SignOutButton>
+          <button className="quiet-button" type="button">Sign out</button>
+        </SignOutButton>
       </div>
-    </div>
+
+      <div className="document-heading">
+        <span className="eyebrow">YOUR WORKSPACE</span>
+        <h2>Your document</h2>
+        <p>Bring a PDF into focus, then ask it anything.</p>
+      </div>
+
+      {file && previewUrl ? (
+        <section className="pdf-card" aria-label="PDF preview">
+          <div className="pdf-card-header">
+            <div className="file-identity">
+              <span className="file-icon"><FileText size={18} /></span>
+              <div className="file-name-wrap">
+                <strong title={file.name}>{file.name}</strong>
+                <span>{isUploading ? "Uploading and preparing…" : `${(file.size / 1024 / 1024).toFixed(2)} MB · PDF`}</span>
+              </div>
+            </div>
+            <button className="icon-button" type="button" onClick={clearFile} aria-label="Remove selected PDF" title="Remove PDF"><X size={18} /></button>
+          </div>
+          <div className="pdf-preview">
+            <iframe src={`${previewUrl}#toolbar=0&navpanes=0`} title={`Preview of ${file.name}`} />
+            {isUploading && <div className="preview-loading"><LoaderCircle className="spin" size={20} /> Preparing your document</div>}
+          </div>
+          <div className="pdf-card-footer"><span className="status-dot" />{isUploading ? "Getting things ready" : "Ready to explore"}</div>
+        </section>
+      ) : (
+        <div
+          className={`upload-dropzone ${isDragOver ? "is-dragging" : ""}`}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(event) => { event.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={onDrop}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }}
+        >
+          <span className="upload-icon"><FileUp size={24} /></span>
+          <strong>Drop your PDF here</strong>
+          <span>or <span className="text-link">browse files</span></span>
+          <small>PDF documents · ready when you are</small>
+          <input ref={inputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => {
+            const chosen = event.target.files?.[0];
+            if (chosen) void selectFile(chosen);
+          }} />
+        </div>
+      )}
+
+      {error && <p className="upload-error" role="alert">{error}</p>}
+      <div className="privacy-note"><span className="privacy-lock"></span></div>
+    </aside>
   );
 };
 
