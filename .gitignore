@@ -1,2 +1,10 @@
 node_modules
 /server/upload
+
+# Environment files and local environment overrides (at any depth)
+**/.env*
+**/*.env
+**/*.env.*
+**/env
+**/env.*
+**/.envrc

@@ -1,4 +1,4 @@
-import { ArrowRight, FileText } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { SignInButton } from "@clerk/clerk-react";
 
 export default function WhisperPDFLanding() {

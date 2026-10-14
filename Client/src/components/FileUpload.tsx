@@ -6,6 +6,8 @@ interface FileUploadProps {
   onFileChange: (fileName: string | null) => void;
 }
 
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/$/, "");
+
 const FileUpload: React.FC<FileUploadProps> = ({ onFileChange }) => {
   const [file, setFile] = React.useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -33,7 +35,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileChange }) => {
     formData.append("pdf", nextFile);
 
     try {
-      const response = await fetch("http://localhost:3000/upload/pdf", {
+      const response = await fetch(`${API_URL}/upload/pdf`, {
         method: "POST",
         body: formData,
       });

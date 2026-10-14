@@ -1,4 +1,7 @@
 import { Worker } from "bullmq";
+import "dotenv/config";
+import { unlink } from "node:fs/promises";
+import { redisConnection } from "./redisConnection.js";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { Document } from "@langchain/core/documents";
@@ -9,10 +12,10 @@ const worker = new Worker(
   "file-upload-queue",
   async (job) => {
     // console.log("job", job.data);
-    const data = JSON.parse(job.data);
-    //Load PDF
-    const loader = new PDFLoader(data.path);
-    const docs = await loader.load();
+    const data = job.data;
+    try {
+      const loader = new PDFLoader(data.path);
+      const docs = await loader.load();
 
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 350,
@@ -26,24 +29,21 @@ const worker = new Worker(
       model: "models/gemini-embedding-001",
     });
 
-    const vectorStore = await QdrantVectorStore.fromExistingCollection(
-      embeddings,
-      {
-        url: "http://localhost:6333",
-        collectionName: "pdf-ChatBot",
-        checkCompatibility: false,
-      },
-    );
+    const vectorStore = await QdrantVectorStore.fromDocuments(splitedDocs, embeddings, {
+      url: process.env.QDRANT_URL || "http://localhost:6333",
+      apiKey: process.env.QDRANT_API_KEY,
+      collectionName: "pdf-ChatBot",
+      checkCompatibility: false,
+    });
 
-    await vectorStore.addDocuments(splitedDocs);
     console.log("All docs have been embedded & stored in Qdrant");
+    } finally {
+      await unlink(data.path).catch(() => {});
+    }
   },
 
   {
-    concurrency: 100,
-    connection: {
-      host: "localhost",
-      port: 6379,
-    },
+    concurrency: 2,
+    connection: redisConnection,
   },
 );

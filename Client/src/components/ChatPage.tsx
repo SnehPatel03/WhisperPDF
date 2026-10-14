@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, FileText } from "lucide-react";
+import {ArrowUp, FileText } from "lucide-react";
 import * as React from "react";
 
 interface Doc {
@@ -10,6 +10,8 @@ interface Message {
   content?: string;
   docs?: Doc[];
 }
+
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/$/, "");
 
 const ChatPage: React.FC<{ fileName: string | null }> = ({ fileName }) => {
   const [message, setMessage] = React.useState("");
@@ -36,7 +38,7 @@ const ChatPage: React.FC<{ fileName: string | null }> = ({ fileName }) => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:3000/chat?message=${encodeURIComponent(question.trim())}`,
+        `${API_URL}/chat?message=${encodeURIComponent(question.trim())}`,
       );
       const data = await response.json();
       if (!response.ok)
